@@ -11,7 +11,6 @@ const int CAN_INT_PIN = 27; // Pino usado para gerar a interrupção pelo modulo
 #ifdef CAN_2515
 #include "mcp2515_can.h"
 mcp2515_can CAN(SPI_CS_PIN); // Set CS pin
-//#define MAX_DATA_SIZE 8
 #endif
 
 #define CAN_ID  0x18DB33F1
@@ -24,8 +23,6 @@ boolean flagRecv = false; //se true indica q uma msg foi recebida via CAN
 
 
 /* Interrupt services routine */
-//void canSender();
-//void canReceiver();
 void set_mask_filt();
 void CircularBuffer_state();
 void MsgRecCAN();
@@ -33,22 +30,20 @@ void trataMsgRecCAN();
 
 
 /* CicularBuffer Defs: */
-
-
 typedef enum {IDLE_ST, DistanceTraveled_ST, EngineRPM_ST, VehicleSpeed_ST, FuelLevel_ST,EngineCoolant_ST} state_t;
 
 
 
 /* ESP Tools */
-/*
+
 CircularBuffer<state_t, BUFFER_SIZE> state_buffer;
 state_t current_state = IDLE_ST;
-*/
 
+/*
 CircularBuffer<int, BUFFER_SIZE> state_buffer;
 int current_state = IDLE_ST;
 bool t = false;
-
+*/
 
 Ticker ticker1Hz;
 Ticker ticker10Hz;
@@ -59,10 +54,6 @@ uint32_t initialTime = 0;
 void PIDs_1hz();
 void PIDs_10hz();
 void PIDs_20hz();
-
-//Ticker ticker_1Hz(PIDs_1hz, 1000, 1); //1 time, every second
-//Ticker ticker_10Hz(PIDs_10hz, 1000, 10);
-//Ticker ticker_20Hz(PIDs_20hz, 1000, 20);
 
 /* Debug Variables */
 bool buffer_full = false;
@@ -75,7 +66,6 @@ void setup()
   Serial.println("INICIANDO ALIVE.");
    
   /* Inicia a can: */
-
   unsigned long tcanStart = 0, cantimeOut = 0;
   tcanStart = millis();
   cantimeOut = 1000; // (1 second)
@@ -104,7 +94,6 @@ void setup()
   set_mask_filt();
   //pinMode(CAN_INT_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(CAN_INT_PIN), MsgRecCAN, FALLING);
-
   
   ticker1Hz.attach(1, PIDs_1hz);
   ticker10Hz.attach(2, PIDs_10hz);
@@ -113,12 +102,11 @@ void setup()
 
 void loop() {
    if (flagCANInit == true){
-      CircularBuffer_state();
 
+      CircularBuffer_state();
       initialTime = millis();
       
-      while(flagRecv == false && current_state!= IDLE_ST)
-      {
+      while(flagRecv == false && current_state!= IDLE_ST){
         if(millis() - initialTime >= 5000)
         {
           break;
@@ -135,8 +123,6 @@ void loop() {
 }
 
 void set_mask_filt() {
-
-
     /*
         set mask, set both the mask to 0x3ff
     */
@@ -156,8 +142,8 @@ void set_mask_filt() {
 }
 
 void CircularBuffer_state(){
- // Serial.println("Entrou no CircularBuffer");
-  if(state_buffer.isFull())
+ 
+   if(state_buffer.isFull())
   {
     buffer_full = true;
     current_state = state_buffer.pop();
@@ -170,77 +156,54 @@ void CircularBuffer_state(){
   }
     //Serial.println(current_state);
 
-    /*
-  if(!t)
-  {
-    while(state_buffer.first() == 0) { state_buffer.pop(); }
-    current_state = state_buffer.pop();
-    
-  }
-    */
   switch(current_state) {
-     
-     //Serial.println("Entrou no Switchcase");
-    case IDLE_ST:
-      //Serial.println("i");
+
+    case IDLE_ST:{
+      
       break;
-    
+    }
+
     case DistanceTraveled_ST:{   
-        //Serial.println("Entrou no um");
+        
       unsigned char messageData[8] = {0x02, 0x01, DistanceTraveled_PID, 0x00, 0x00, 0x00, 0x00, 0x00};
 
       if(CAN.sendMsgBuf(CAN_ID, 1, 8, messageData) == CAN_OK){  
-          //tempoinicial2 = millis();
-      Serial.print("Send to CAN: id ");
-      Serial.print(CAN_ID, HEX);
-      Serial.print("  ");    
-      
-      for (int i = 0; i < 8; i++){
-    
-          Serial.print((messageData[i]),HEX); 
-          Serial.print("\t");
-      }
-      /*
-      if(!t)
-      {
-        current_state = IDLE_ST;
-        t = true;
-      }
-      */
-      Serial.println();
-        
-        
+         
+        Serial.print("Send to CAN: id ");
+        Serial.print(CAN_ID, HEX);
+        Serial.print("  ");    
+
+        for (int i = 0; i < 8; i++){      
+            Serial.print((messageData[i]),HEX); 
+            Serial.print("\t");
+        }
+       
+        Serial.println();
       }
       
       break;
     }
+
     case EngineRPM_ST:{
-      //Serial.println("Entrou no 2");
+      
       unsigned char messageData[8] = {0x02, 0x01, EngineRPM_PID, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-        if(CAN.sendMsgBuf(CAN_ID, 1, 8, messageData) == CAN_OK) {  
-          
+        if(CAN.sendMsgBuf(CAN_ID, 1, 8, messageData) == CAN_OK) {           
           
             Serial.print("Send to CAN: id ");
             Serial.print(CAN_ID, HEX);
             Serial.print("  ");    
             
-            for (int i = 0; i < 8; i++){
-          
+            for (int i = 0; i < 8; i++){          
                 Serial.print((messageData[i]),HEX); 
                 Serial.print("\t");
-            }
-            
-            Serial.println();
-
-          
-          }
-          
+            }            
+            Serial.println();         
+          }          
         break;
     }
     case VehicleSpeed_ST:{
-      //Serial.println("Entrou no 3");
-
+      
       unsigned char messageData[8] = {0x02, 0x01, VehicleSpeed_PID, 0x00, 0x00, 0x00, 0x00, 0x00};
 
         if(CAN.sendMsgBuf(CAN_ID, 1, 8, messageData) == CAN_OK) {  
@@ -262,8 +225,7 @@ void CircularBuffer_state(){
       break;
     }
     case FuelLevel_ST:{
-         // Serial.println("Entrou no 4");
-      unsigned char messageData[8] = {0x02, 0x01, FuelLevel_PID, 0x00, 0x00, 0x00, 0x00, 0x00};
+               unsigned char messageData[8] = {0x02, 0x01, FuelLevel_PID, 0x00, 0x00, 0x00, 0x00, 0x00};
 
         if(CAN.sendMsgBuf(CAN_ID, 1, 8, messageData) == CAN_OK) {  
 
@@ -284,7 +246,7 @@ void CircularBuffer_state(){
       break;
     }
     case EngineCoolant_ST:{
-        //Serial.println("Entrou no 5");
+        
       unsigned char messageData[8] = {0x02, 0x01, EngineCoolant_PID, 0x00, 0x00, 0x00, 0x00, 0x00};
 
         if(CAN.sendMsgBuf(CAN_ID, 1, 8, messageData) == CAN_OK) {  
@@ -311,9 +273,7 @@ void CircularBuffer_state(){
 
 void MsgRecCAN(){
     flagRecv = true; //flag que indica que uma msg foi recebida via CAN
-
-    //current_state = (!state_buffer.isEmpty() || state_buffer.isFull() ? state_buffer.pop() : IDLE_ST);
-    //Serial.println("teste direc");
+    
 }
 
 void trataMsgRecCAN(){
@@ -321,7 +281,6 @@ void trataMsgRecCAN(){
 
   while(CAN.checkReceive() == CAN_MSGAVAIL)
   {
-    //Serial.println("ok!");
     unsigned char messageData[8];
     uint32_t messageId;
     unsigned char len = 0; //armazena o tamanho da msg CAN (qtd de dados recebidos)
@@ -330,14 +289,9 @@ void trataMsgRecCAN(){
     CAN.readMsgBuf(&len, messageData); 
     messageId = CAN.getCanId();
 
-      Serial.print("Recieve by CAN: id ");
-
-      //Serial.print(messageId);
-      //Serial.print(" (");
-      Serial.print(messageId, HEX);
-      //Serial.print(")HEX");
-      Serial.print("\t");
-      // print the data
+      Serial.print("Recieve by CAN: id ");      
+      Serial.print(messageId, HEX);      
+      Serial.print("\t");    
       
       for (int i = 0; i < len; i++){
     
